@@ -229,6 +229,13 @@ class Librarian(User):
             "BOOK_MANAGE_INVENTORY",
             "BOOK_TRANSFER_INITIATE",
             "BOOK_TRANSFER_RECEIVE",
+            "BOOK_ALLOCATE",
+            "BOOK_RESERVE",
+            "BILLING_PAY",
+            "INTEL_RECOMMENDATIONS",
+            "INTEL_RISK_ASSESSMENT",
+            "INTEL_LEARNING_PATH",
+            "INTEL_GRAPH_TRAVERSE",
             "FINE_WAIVE_PARTIAL",
             "USER_VIEW_CIRCULATION",
         }

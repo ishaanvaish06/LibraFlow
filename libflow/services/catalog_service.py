@@ -1,26 +1,30 @@
 """
-Catalog Service: Orchestrates Book Creation, Indexing, Autocomplete, and Caching
+Catalog Service: orchestrates book creation, indexing, autocomplete and caching.
 """
-from typing import Dict, Any, List, Optional
 
-from libflow.core.book import Book, PhysicalBook, EBook, AudioBook, BookCopy
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+
+from libflow.core.book import Book, BookCopy, PhysicalBook
+from libflow.core.exceptions import BookNotFoundError
 from libflow.core.factory import BookFactory
-from libflow.dsa.trie import AutocompleteTrie
 from libflow.dsa.inverted_index import InvertedIndex
-from libflow.storage.database import LibraryDatabase
-from libflow.storage.cache import DistributedCache
+from libflow.dsa.trie import AutocompleteTrie
 from libflow.patterns.singleton_logger import AuditLogger
+from libflow.storage.cache import Cache
+from libflow.storage.repository import BookRepository
 
 
 class CatalogService:
     def __init__(
         self,
-        db: LibraryDatabase,
+        book_repo: BookRepository,
         trie: AutocompleteTrie,
         index: InvertedIndex,
-        cache: DistributedCache,
+        cache: Cache,
     ):
-        self.db = db
+        self.book_repo = book_repo
         self.trie = trie
         self.index = index
         self.cache = cache
@@ -28,16 +32,15 @@ class CatalogService:
 
     def register_book(self, format_type: str, actor_id: str, **kwargs: Any) -> Book:
         book = BookFactory.create_book(format_type=format_type, **kwargs)
-        self.db.save_book(book)
+        self.book_repo.save_book(book)
 
-        # Index in Search Engines
         self.index.index_book(book)
         self.trie.insert(book.title, book.isbn, book.title, weight=book.rating)
         for author in book.authors:
             self.trie.insert(author, book.isbn, f"{book.title} (by {author})", weight=book.rating * 0.9)
 
-        # Invalidate search caches
         self.cache.invalidate_prefix("search:")
+        self.cache.invalidate(f"book:{book.isbn}")
 
         self.audit_logger.log_event(
             actor_id=actor_id,
@@ -56,15 +59,21 @@ class CatalogService:
         price: float = 500.0,
         actor_id: str = "ADMIN",
     ) -> BookCopy:
-        book = self.db.get_book(isbn)
+        book = self.book_repo.get_book(isbn)
         if not isinstance(book, PhysicalBook):
-            raise ValueError(f"Book with ISBN '{isbn}' is not a physical book.")
+            raise BookNotFoundError(isbn)
 
-        copy = BookCopy(copy_id=copy_id, book_isbn=isbn, branch_id=branch_id, shelf_location=shelf_location, price=price)
+        copy = BookCopy(
+            copy_id=copy_id,
+            book_isbn=isbn,
+            branch_id=branch_id,
+            shelf_location=shelf_location,
+            price=price,
+        )
         book.add_copy(copy)
-        self.db.save_book(book)
+        self.book_repo.save_copy(copy)
+        self.book_repo.save_book(book)
 
-        # Invalidate book cache
         self.cache.invalidate(f"book:{isbn}")
 
         self.audit_logger.log_event(
@@ -77,10 +86,10 @@ class CatalogService:
 
     def get_book_details(self, isbn: str) -> Optional[Dict[str, Any]]:
         cache_key = f"book:{isbn}"
-        
-        def _loader():
-            b = self.db.get_book(isbn)
-            return b.to_dict() if b else None
+
+        def _loader() -> Optional[Dict[str, Any]]:
+            book = self.book_repo.get_book(isbn)
+            return book.to_dict() if book else None
 
         return self.cache.get_or_compute(cache_key, _loader, ttl_seconds=600.0)
 

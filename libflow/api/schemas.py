@@ -7,13 +7,14 @@ from typing import List, Optional, Dict, Any
 
 class UserLoginRequest(BaseModel):
     user_id: str
-    password: str = "password"
+    password: str
 
 
 class UserRegisterRequest(BaseModel):
     user_id: str
     name: str
     email: str
+    password: str
     role: str = "STUDENT"
     academic_year: Optional[int] = 1
     major: Optional[str] = "Computer Science"
@@ -84,4 +85,4 @@ class PayFineRequest(BaseModel):
 class BranchTransferRequest(BaseModel):
     copy_id: str
     dest_branch_id: str
-    requested_by: str
+    requested_by: Optional[str] = None

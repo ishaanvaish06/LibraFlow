@@ -1,45 +1,58 @@
-version: '3.8'
-
 services:
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: libraflow-api
-    ports:
-      - "8000:8000"
-    environment:
-      - ENVIRONMENT=production
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=libraflow
-      - DB_USER=libraflow_user
-      - DB_PASSWORD=libraflow_secret
-    depends_on:
-      - redis
-      - postgres
-    restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    container_name: libraflow-redis
-    ports:
-      - "6379:6379"
-    restart: unless-stopped
-
   postgres:
     image: postgres:16-alpine
     container_name: libraflow-postgres
-    ports:
-      - "5432:5432"
     environment:
       - POSTGRES_DB=libraflow
       - POSTGRES_USER=libraflow_user
       - POSTGRES_PASSWORD=libraflow_secret
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U libraflow_user -d libraflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: libraflow-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    container_name: libraflow-api
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - LIBRAFLOW_SECRET_KEY=change-me-in-production
+      - LIBRAFLOW_STORAGE=postgres
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=libraflow
+      - DB_USER=libraflow_user
+      - DB_PASSWORD=libraflow_secret
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

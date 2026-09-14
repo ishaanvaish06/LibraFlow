@@ -1,0 +1,22 @@
+{
+  "benchmark": "concurrency-stress",
+  "run_at": "2026-09-14T13:19:47.138849+00:00",
+  "parameters": {
+    "threads": 50,
+    "target_copy": "CC-DEL-02"
+  },
+  "outcomes": [
+    [
+      "CopyUnavailableError",
+      49
+    ],
+    [
+      "SUCCESS",
+      1
+    ]
+  ],
+  "successes": 1,
+  "failures": 49,
+  "elapsed_seconds": 0.026,
+  "passed": true
+}

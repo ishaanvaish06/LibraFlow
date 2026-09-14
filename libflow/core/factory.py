@@ -7,6 +7,7 @@ from datetime import date
 from libflow.core.enums import BookFormat, UserRole
 from libflow.core.book import Book, PhysicalBook, EBook, AudioBook, BookCopy
 from libflow.core.user import User, Student, Faculty, Librarian, Admin
+from libflow.core.passwords import hash_password
 
 
 class BookFactory:
@@ -86,7 +87,12 @@ class UserFactory:
         name = kwargs["name"]
         email = kwargs["email"]
         branch_id = kwargs.get("branch_id", "BRANCH-CENTRAL")
-        pwd = kwargs.get("password_hash", "default_hash")
+
+        # Accept a raw password (preferred) or a pre-hashed value.
+        if "password" in kwargs:
+            pwd = hash_password(kwargs["password"])
+        else:
+            pwd = kwargs.get("password_hash", "default_hash")
 
         if role == UserRole.STUDENT:
             exam_date_val = kwargs.get("exam_date")

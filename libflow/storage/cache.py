@@ -1,11 +1,54 @@
 """
-Distributed Cache System (Redis-Compatible Simulation)
-Implements LRU Eviction, Cache-Aside Pattern, TTL, and Invalidation Policies.
+Cache abstraction.
+
+``Cache`` is the contract services rely on. Two implementations exist:
+
+* ``InMemoryCache`` — LRU eviction, thread-safe; used in unit tests and as
+  the offline-dev fallback.
+* ``RedisCache`` (``libflow.storage.redis_cache``) — real distributed cache
+  used in deployed environments.
+
+Both implement cache-aside via ``get_or_compute``.
 """
-from typing import Dict, Any, Optional, Tuple, Callable
-from collections import OrderedDict
-import time
+
+from __future__ import annotations
+
 import threading
+import time
+from abc import ABC, abstractmethod
+from collections import OrderedDict
+from typing import Any, Callable, Dict, Optional
+
+
+class Cache(ABC):
+    @abstractmethod
+    def get(self, key: str) -> Optional[Any]:
+        """Return the cached value for *key*, or None on miss/expiry."""
+
+    @abstractmethod
+    def set(self, key: str, value: Any, ttl_seconds: Optional[float] = 300.0) -> None:
+        ...
+
+    @abstractmethod
+    def invalidate(self, key: str) -> bool:
+        ...
+
+    @abstractmethod
+    def invalidate_prefix(self, prefix: str) -> int:
+        ...
+
+    @abstractmethod
+    def get_or_compute(
+        self,
+        key: str,
+        compute_fn: Callable[[], Any],
+        ttl_seconds: float = 300.0,
+    ) -> Any:
+        ...
+
+    @abstractmethod
+    def get_stats(self) -> Dict[str, Any]:
+        ...
 
 
 class CacheEntry:
@@ -20,14 +63,15 @@ class CacheEntry:
         return time.time() > self.expires_at
 
 
-class DistributedCache:
+class InMemoryCache(Cache):
     """
-    Thread-safe in-memory cache simulating a Redis cluster with LRU eviction and Cache-Aside helper.
+    Thread-safe LRU cache implementing the ``Cache`` contract.
+
+    Capacity-limited; least-recently-used entries are evicted on insert.
     """
 
     def __init__(self, capacity: int = 1000):
         self.capacity = capacity
-        # key -> CacheEntry (OrderedDict for LRU)
         self._cache: OrderedDict[str, CacheEntry] = OrderedDict()
         self._lock = threading.Lock()
         self.hits = 0
@@ -35,17 +79,11 @@ class DistributedCache:
 
     def get(self, key: str) -> Optional[Any]:
         with self._lock:
-            if key not in self._cache:
+            entry = self._cache.get(key)
+            if entry is None or entry.is_expired():
+                self._cache.pop(key, None)
                 self.misses += 1
                 return None
-
-            entry = self._cache[key]
-            if entry.is_expired():
-                del self._cache[key]
-                self.misses += 1
-                return None
-
-            # Move to MRU position
             self._cache.move_to_end(key)
             self.hits += 1
             return entry.value
@@ -55,34 +93,29 @@ class DistributedCache:
             if key in self._cache:
                 del self._cache[key]
             elif len(self._cache) >= self.capacity:
-                # Evict oldest LRU entry
                 self._cache.popitem(last=False)
-
             self._cache[key] = CacheEntry(key, value, ttl_seconds)
 
     def invalidate(self, key: str) -> bool:
         with self._lock:
-            if key in self._cache:
-                del self._cache[key]
-                return True
-            return False
+            return self._cache.pop(key, None) is not None
 
     def invalidate_prefix(self, prefix: str) -> int:
         with self._lock:
-            keys_to_del = [k for k in self._cache.keys() if k.startswith(prefix)]
-            for k in keys_to_del:
+            keys = [k for k in self._cache if k.startswith(prefix)]
+            for k in keys:
                 del self._cache[k]
-            return len(keys_to_del)
+            return len(keys)
 
-    def get_or_compute(self, key: str, compute_fn: Callable[[], Any], ttl_seconds: float = 300.0) -> Any:
-        """
-        Implements the Cache-Aside pattern: returns cached value or executes loader function and caches result.
-        """
+    def get_or_compute(
+        self,
+        key: str,
+        compute_fn: Callable[[], Any],
+        ttl_seconds: float = 300.0,
+    ) -> Any:
         cached = self.get(key)
         if cached is not None:
             return cached
-
-        # Cache miss: compute from database / source
         computed = compute_fn()
         if computed is not None:
             self.set(key, computed, ttl_seconds=ttl_seconds)
@@ -90,9 +123,10 @@ class DistributedCache:
 
     def get_stats(self) -> Dict[str, Any]:
         with self._lock:
-            total_requests = self.hits + self.misses
-            hit_ratio = (self.hits / total_requests) if total_requests > 0 else 0.0
+            total = self.hits + self.misses
+            hit_ratio = (self.hits / total) if total > 0 else 0.0
             return {
+                "backend": "in_memory",
                 "size": len(self._cache),
                 "capacity": self.capacity,
                 "hits": self.hits,

@@ -1,0 +1,15 @@
+{
+  "benchmark": "load-test",
+  "run_at": "2026-09-14T13:37:37.210868+00:00",
+  "parameters": {
+    "threads": 50,
+    "ramp": 10,
+    "run_time": "30s"
+  },
+  "total_requests": 1466,
+  "requests_per_second": 50.2,
+  "total_failures": 0,
+  "failure_rate_pct": 0.0,
+  "passed": true,
+  "locust_stdout_last_lines": []
+}
