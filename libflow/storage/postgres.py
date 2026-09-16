@@ -12,7 +12,6 @@ place, which keeps surprising persistence behaviour out of the domain layer.
 
 from __future__ import annotations
 
-import json
 from contextlib import contextmanager
 from typing import Any, Dict, Iterator, List, Optional
 
@@ -22,8 +21,8 @@ from sqlalchemy.engine import Engine
 
 from libflow.core.book import Book, BookCopy, PhysicalBook, EBook, AudioBook
 from libflow.core.branch import LibraryBranch
-from libflow.core.enums import BookFormat, BookStatus, UserRole
-from libflow.core.factory import BookFactory, UserFactory
+from libflow.core.enums import BookFormat, UserRole
+from libflow.core.factory import UserFactory
 from libflow.core.user import User
 from libflow.storage.models import (
     Base,

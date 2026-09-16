@@ -30,7 +30,6 @@ def alice(container: LibraFlowContainer):
 
 @pytest.fixture
 def admin_token(container: LibraFlowContainer) -> str:
-    from libflow.core.user import Admin
     from libflow.api.auth import create_access_token
 
     admin = container.user_repo.get_user("ADMIN-01")

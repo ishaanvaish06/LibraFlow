@@ -8,7 +8,6 @@ from __future__ import annotations
 import pytest
 
 from libflow.core.enums import BookStatus, TransferStatus
-from libflow.distributed.branch_manager import MultiBranchManager
 
 
 def test_multi_branch_manager_transfer_lifecycle(container):

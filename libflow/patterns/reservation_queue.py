@@ -2,7 +2,7 @@
 Book Reservation Queue System
 Handles FIFO waiting queues, automatic assignment upon book return, and reservation expiry.
 """
-from typing import Dict, List, Optional, Deque
+from typing import Dict, Optional, Deque
 from collections import deque
 from datetime import datetime, timedelta
 import uuid

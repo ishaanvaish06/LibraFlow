@@ -204,6 +204,6 @@ def seed_library(container: "LibraFlowContainer") -> None:
     clean_user = container.user_repo.get_user("STU-ALICE")
     for isbn, copies in [("978-0132350884", ["CC-DEL-01"]), ("978-1118063330", ["OSC-DEL-01"])]:
         for cid in copies:
-            tx = container.circulation_svc.issue_physical_book(cid, clean_user.user_id if clean_user else "STU-BOB", actor_id="LIB-SARAH")
+            container.circulation_svc.issue_physical_book(cid, clean_user.user_id if clean_user else "STU-BOB", actor_id="LIB-SARAH")
             if clean_user:
                 container.circulation_svc.return_physical_book(cid, actor_id="LIB-SARAH", is_late=False, is_damaged=False)

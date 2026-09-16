@@ -12,12 +12,12 @@ from __future__ import annotations
 import logging
 import time
 from contextlib import asynccontextmanager
-from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from libflow.api.dependencies import build_container, LibraFlowContainer
+from libflow.api.dependencies import build_container
+from libflow.api.metrics import router as metrics_router
 from libflow.core import exceptions as exc
 from .routers import auth, billing, branches, catalog, circulation, intelligence, rebalance, system
 
@@ -85,7 +85,6 @@ app.include_router(intelligence.router)
 app.include_router(branches.router)
 app.include_router(rebalance.router)
 app.include_router(system.router)
-from libflow.api.metrics import router as metrics_router
 app.include_router(metrics_router)
 
 

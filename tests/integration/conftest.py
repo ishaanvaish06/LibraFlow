@@ -25,23 +25,37 @@ def _env(name: str, default: str) -> str:
 
 @pytest.fixture
 def session_factory() -> DatabaseSessionFactory:
-    url = _env(
-        "TEST_DATABASE_URL",
-        "postgresql+psycopg2://libraflow_user:libraflow_secret@localhost:5432/libraflow",
-    )
-    factory = DatabaseSessionFactory(url)
-    factory.create_all()
+    url = os.getenv("TEST_DATABASE_URL")
+    if not url:
+        user = os.getenv("DB_USER", "libraflow_user")
+        pwd = os.getenv("DB_PASSWORD", "libraflow_secret")
+        host = os.getenv("DB_HOST", "localhost")
+        port = os.getenv("DB_PORT", "5432")
+        db = os.getenv("DB_NAME", "libraflow_test")
+        url = f"postgresql+psycopg2://{user}:{pwd}@{host}:{port}/{db}"
+    try:
+        factory = DatabaseSessionFactory(url)
+        factory.create_all()
+    except Exception as exc:
+        pytest.skip(f"PostgreSQL not reachable at {url}: {exc}")
     yield factory
     factory.dispose()
 
 
 @pytest.fixture
 def redis_cache() -> RedisCache:
-    host = _env("TEST_REDIS_HOST", "localhost")
-    port = int(_env("TEST_REDIS_PORT", "6379"))
-    cache = RedisCache.from_settings(host=host, port=port)
-    if not cache._client.ping():
-        pytest.skip("Redis not reachable at %s:%s" % (host, port))
+    host = os.getenv("TEST_REDIS_HOST") or os.getenv("REDIS_HOST", "localhost")
+    port = int(os.getenv("TEST_REDIS_PORT") or os.getenv("REDIS_PORT", "6379"))
+    try:
+        cache = RedisCache.from_settings(host=host, port=port)
+        if not cache._client.ping():
+            pytest.skip("Redis not reachable at %s:%s" % (host, port))
+    except Exception as exc:
+        pytest.skip(f"Redis not reachable at {host}:{port}: {exc}")
     cache._client.flushdb()
     yield cache
-    cache._client.flushdb()
+    try:
+        cache._client.flushdb()
+    except Exception:
+        pass
+

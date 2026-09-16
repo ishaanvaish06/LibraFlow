@@ -49,7 +49,7 @@ class AuditLogger:
         with self._buffer_lock:
             logs_copy = list(self._logs)
         if action_filter:
-            logs_copy = [l for l in logs_copy if l["action"] == action_filter]
+            logs_copy = [entry for entry in logs_copy if entry["action"] == action_filter]
         return logs_copy[-limit:]
 
     def clear(self) -> None:

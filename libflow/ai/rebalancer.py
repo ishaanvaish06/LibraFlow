@@ -11,7 +11,6 @@ from datetime import datetime, timedelta, timezone
 import heapq
 import math
 from typing import Any, Dict, List, Optional
-import uuid
 
 from libflow.ai.demand_forecaster import DemandForecaster
 from libflow.core.book import BookCopy, PhysicalBook

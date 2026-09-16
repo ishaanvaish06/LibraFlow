@@ -2,8 +2,8 @@
 Demand & Peak Season Forecaster
 Forecasts inventory contention using academic calendar cues and borrow frequency spikes.
 """
-from typing import Dict, Any, List
-from datetime import date, timedelta
+from typing import Dict, Any, List, Optional
+from datetime import date
 from collections import defaultdict
 
 

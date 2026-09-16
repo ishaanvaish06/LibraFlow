@@ -1,7 +1,7 @@
 """
 Core Enumerations for LibraFlow Domain Model
 """
-from enum import Enum, auto
+from enum import Enum
 
 
 class BookFormat(str, Enum):

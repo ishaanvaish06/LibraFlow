@@ -30,7 +30,7 @@ class User(ABC):
         self.password_hash = password_hash
         self.max_borrow_limit = max_borrow_limit
         self.branch_id = branch_id
-        
+
         # State tracking
         self.active_borrowed_copy_ids: Set[str] = set()
         self.borrow_history: List[Dict[str, Any]] = []

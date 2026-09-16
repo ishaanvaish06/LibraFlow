@@ -41,10 +41,10 @@ class InvertedIndex:
 
         # Combine searchable texts with field boosting
         tokens: List[str] = []
-        
+
         # Exact ISBN token
         tokens.extend([book.isbn.lower().replace("-", ""), book.isbn.lower()])
-        
+
         # Title tokens (boosted x3)
         title_tokens = self._tokenize(book.title)
         tokens.extend(title_tokens * 3)

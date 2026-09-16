@@ -1,7 +1,7 @@
 """
 Library Branch Domain Model
 """
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 
 class LibraryBranch:

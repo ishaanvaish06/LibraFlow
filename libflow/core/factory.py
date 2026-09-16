@@ -1,11 +1,11 @@
 """
 Factory Pattern Implementation for Book & User Instantiation
 """
-from typing import Dict, Any, List, Optional
+from typing import Any
 from datetime import date
 
 from libflow.core.enums import BookFormat, UserRole
-from libflow.core.book import Book, PhysicalBook, EBook, AudioBook, BookCopy
+from libflow.core.book import Book, PhysicalBook, EBook, AudioBook
 from libflow.core.user import User, Student, Faculty, Librarian, Admin
 from libflow.core.passwords import hash_password
 

@@ -2,7 +2,7 @@
 Trie (Prefix Tree) Implementation for Real-Time Autocomplete
 O(K) lookup where K is the query prefix length.
 """
-from typing import Dict, List, Set, Tuple, Optional, Any
+from typing import Dict, List, Set, Tuple, Any
 
 
 class TrieNode:

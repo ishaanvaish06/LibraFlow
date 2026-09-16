@@ -108,6 +108,8 @@ def test_reservation_queue_auto_assignment():
     # Alice and Bob reserve the same book
     res1 = mgr.reserve_book("ISBN-CLEAN", "ALICE")
     res2 = mgr.reserve_book("ISBN-CLEAN", "BOB")
+    assert res1.user_id == "ALICE"
+    assert res2.user_id == "BOB"
 
     assert mgr.get_waiting_count("ISBN-CLEAN") == 2
 

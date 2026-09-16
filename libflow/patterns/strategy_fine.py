@@ -3,8 +3,7 @@ GoF Strategy Pattern for Dynamic Fine Calculation
 Formula: Fine = Base + Demand Factor + Popularity + User History Penalty
 """
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
-from datetime import datetime
+from typing import Dict, Any
 
 
 class FineCalculationStrategy(ABC):

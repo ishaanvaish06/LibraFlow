@@ -10,14 +10,13 @@ lock as a black box — which keeps this module storage-agnostic.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 import uuid
 
 from libflow.ai.demand_forecaster import DemandForecaster
-from libflow.core.book import BookCopy, PhysicalBook
+from libflow.core.book import PhysicalBook
 from libflow.core.enums import BookStatus
 from libflow.core.exceptions import (
-    BookNotFoundError,
     CopyNotFoundError,
     CopyUnavailableError,
     InvalidStateTransitionError,

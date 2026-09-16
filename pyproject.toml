@@ -7,3 +7,18 @@ markers = [
 filterwarnings = [
     "ignore::DeprecationWarning:starlette",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",               # Pycodestyle errors
+    "W",               # Pycodestyle warnings
+    "F",               # Pyflakes
+]
+ignore = [
+    "E501",            # Line length (handled by formatter)
+    "B008",            # Do not perform function calls in argument defaults (FastAPI Depends/Query)
+]

@@ -6,7 +6,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-import uuid
 
 from libflow.core.enums import BookFormat, BookStatus
 from libflow.core.book_state import BookCopyState, AvailableState

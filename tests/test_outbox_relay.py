@@ -4,12 +4,9 @@ Tests for Transactional Outbox pattern, OutboxRelay worker, and EventBus.
 
 from __future__ import annotations
 
-import time
-import pytest
 
 from libflow.distributed.event_bus import InMemoryEventBus
 from libflow.storage.outbox import InMemoryOutboxRepository, OutboxRelay
-from libflow.services.circulation_service import CirculationService
 from libflow.api.dependencies import build_in_memory_container
 from libflow.seed import seed_library
 

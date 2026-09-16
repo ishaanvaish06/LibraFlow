@@ -5,8 +5,6 @@ tracking checkouts, returns, rebalance transfers, latency, and circuit breaker t
 """
 from __future__ import annotations
 
-import time
-from typing import Callable
 from fastapi import APIRouter, Request, Response
 from prometheus_client import (
     Counter,

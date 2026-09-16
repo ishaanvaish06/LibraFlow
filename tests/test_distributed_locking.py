@@ -11,7 +11,6 @@ from __future__ import annotations
 import threading
 import time
 import pytest
-from unittest.mock import MagicMock
 
 from libflow.storage.lock_manager import ConcurrencyLockManager, LUA_RELEASE_LOCK, LUA_OPTIMISTIC_VERSION
 

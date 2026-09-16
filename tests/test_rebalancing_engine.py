@@ -4,15 +4,13 @@ Tests for the Cross-Branch Inventory Rebalancing Engine & Closed-Loop Metrics.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
-import pytest
+from datetime import date
 
 from libflow.ai.demand_forecaster import DemandForecaster
 from libflow.ai.rebalancer import CrossBranchRebalancingEngine
-from libflow.api.dependencies import build_in_memory_container
 from libflow.core.book import PhysicalBook, BookCopy
 from libflow.core.branch import LibraryBranch
-from libflow.core.enums import BookFormat, BookStatus
+from libflow.core.enums import BookStatus
 from libflow.distributed.branch_manager import MultiBranchManager
 from libflow.distributed.event_bus import InMemoryEventBus
 from libflow.storage.inmemory import InMemoryBookRepository, InMemoryBranchRepository

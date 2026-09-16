@@ -70,6 +70,7 @@ class CardPaymentStrategy(PaymentStrategy):
             "amount": amount,
             "payer_id": payer_id,
             "card_last4": card_last4,
+            "expiry": expiry,
             "timestamp": datetime.now().isoformat(),
         }
 

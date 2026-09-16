@@ -5,11 +5,9 @@ Tests for API Idempotency Keys across checkout, return, and payment endpoints.
 from __future__ import annotations
 
 import uuid
-import pytest
 
 from tests.conftest import auth_headers
 from libflow.api.idempotency import IdempotencyStore, handle_idempotent_operation
-from fastapi import HTTPException
 
 
 def test_idempotency_store_direct():

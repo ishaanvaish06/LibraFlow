@@ -1,6 +1,6 @@
 {
   "benchmark": "concurrency-stress",
-  "run_at": "2026-09-16T07:54:41.877387+00:00",
+  "run_at": "2026-09-16T08:24:24.139643+00:00",
   "parameters": {
     "threads": 50,
     "target_copy": "CC-DEL-02"
@@ -17,6 +17,6 @@
   ],
   "successes": 1,
   "failures": 49,
-  "elapsed_seconds": 0.028,
+  "elapsed_seconds": 0.0289,
   "passed": true
 }

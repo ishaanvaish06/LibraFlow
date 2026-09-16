@@ -8,7 +8,7 @@ from datetime import datetime
 
 from libflow.core.enums import TransferStatus
 from libflow.core.branch import LibraryBranch
-from libflow.core.book import PhysicalBook, BookCopy
+from libflow.core.book import BookCopy
 
 
 class InterBranchTransferRequest:

@@ -111,3 +111,26 @@ def get_recommender(
     container: LibraFlowContainer = Depends(get_container),
 ) -> RecommendationEngine:
     return container.recommender
+
+
+__all__ = [
+    "LibraFlowContainer",
+    "build_container",
+    "build_in_memory_container",
+    "build_postgres_container",
+    "get_container",
+    "get_catalog_service",
+    "get_circulation_service",
+    "get_billing_service",
+    "get_intelligence_service",
+    "get_branch_manager",
+    "get_cache",
+    "get_inapp_notifications",
+    "get_audit_logger",
+    "get_user_repository",
+    "get_book_repository",
+    "get_branch_repository",
+    "get_reservation_manager",
+    "get_recommender",
+]
+

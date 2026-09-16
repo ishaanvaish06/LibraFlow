@@ -89,7 +89,7 @@ class SmartAllocationQueue:
         Pushes a new request into the priority queue.
         """
         priority = custom_priority if custom_priority is not None else self.calculate_priority(user, book_category)
-        
+
         # We store negative priority in python's min-heap to simulate max-heap
         req = BorrowRequest(
             priority=-priority,  # Negative for max-heap

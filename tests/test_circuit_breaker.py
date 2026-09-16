@@ -7,7 +7,7 @@ from __future__ import annotations
 import time
 import pytest
 
-from libflow.storage.circuit_breaker import CircuitBreaker, CircuitState, CircuitBreakerOpenError
+from libflow.storage.circuit_breaker import CircuitBreaker, CircuitState
 from libflow.ai.risk_assessment import RiskAssessmentModel
 from libflow.core.factory import UserFactory
 

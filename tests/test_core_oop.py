@@ -12,17 +12,10 @@ from libflow.core import (
     AudioBook,
     BookCopy,
     Student,
-    Faculty,
     Librarian,
     Admin,
     BookFactory,
     UserFactory,
-    AvailableState,
-    IssuedState,
-    ReservedState,
-    InTransitState,
-    LostState,
-    UnderRepairState,
 )
 
 
@@ -68,6 +61,7 @@ def test_book_factory_creates_ebook_and_audiobook():
     assert ebook.active_readers_count == 1
 
     url2 = ebook.acquire_read_access()
+    assert "https://" in url2
     assert ebook.active_readers_count == 2
     assert ebook.is_available() is False
 
