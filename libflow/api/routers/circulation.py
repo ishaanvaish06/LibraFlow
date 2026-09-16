@@ -37,7 +37,9 @@ def issue_physical_copy(
         )
         return {"status": "SUCCESS", "transaction": tx}
 
-    return handle_idempotent_operation(idempotency_key, default_idempotency_store, _execute)
+    return handle_idempotent_operation(
+        idempotency_key, default_idempotency_store, _execute, user_id=req.user_id or claims.get("sub")
+    )
 
 
 @router.post("/return")
@@ -56,7 +58,9 @@ def return_physical_copy(
         )
         return {"status": "SUCCESS", **result}
 
-    return handle_idempotent_operation(idempotency_key, default_idempotency_store, _execute)
+    return handle_idempotent_operation(
+        idempotency_key, default_idempotency_store, _execute, user_id=claims.get("sub") or req.copy_id
+    )
 
 
 @router.post("/reserve")

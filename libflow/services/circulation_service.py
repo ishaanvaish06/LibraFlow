@@ -71,13 +71,13 @@ class CirculationService:
     ) -> Dict[str, Any]:
         """Issue a physical copy under an exclusive lock; guarantees exactly one
         concurrent checkout succeeds for a given copy."""
-        user = self.user_repo.get_user(user_id)
-        if not user:
-            raise UserNotFoundError(user_id)
-        if not user.can_borrow():
-            raise UserNotEligibleError(user_id, "borrow limit reached or unpaid fines")
-
         with self.book_repo.locking_section(copy_id) as session:
+            user = self.user_repo.get_user(user_id, session=session, for_update=True)
+            if not user:
+                raise UserNotFoundError(user_id)
+            if not user.can_borrow():
+                raise UserNotEligibleError(user_id, "borrow limit reached or unpaid fines")
+
             copy = self.book_repo.get_copy(copy_id, session=session)
             if not copy:
                 raise CopyNotFoundError(copy_id)
@@ -129,22 +129,23 @@ class CirculationService:
                 self.rebalancer.record_checkout_hook(copy_id, copy.branch_id)
             self.cache.invalidate(f"book:{copy.book_isbn}")
 
-            self.dispatcher.dispatch(NotificationEvent(
-                event_type="BOOK_ISSUED",
-                recipient_id=user_id,
-                message=(
-                    f"Book copy '{copy_id}' issued successfully. "
-                    f"Due on {due_date.strftime('%Y-%m-%d')}."
-                ),
-                payload={"copy_id": copy_id, "isbn": copy.book_isbn, "due_date": due_date.isoformat()},
-            ))
-            self.audit_logger.log_event(
-                actor_id=actor_id,
-                action="ISSUE_BOOK",
-                resource_id=copy_id,
-                details={"user_id": user_id, "isbn": copy.book_isbn},
-            )
-            return tx_record
+        # Post-commit side effects: notifications and audit logging executed only after successful commit
+        self.dispatcher.dispatch(NotificationEvent(
+            event_type="BOOK_ISSUED",
+            recipient_id=user_id,
+            message=(
+                f"Book copy '{copy_id}' issued successfully. "
+                f"Due on {due_date.strftime('%Y-%m-%d')}."
+            ),
+            payload={"copy_id": copy_id, "isbn": copy.book_isbn, "due_date": due_date.isoformat()},
+        ))
+        self.audit_logger.log_event(
+            actor_id=actor_id,
+            action="ISSUE_BOOK",
+            resource_id=copy_id,
+            details={"user_id": user_id, "isbn": copy.book_isbn},
+        )
+        return tx_record
 
     def return_physical_book(
         self,

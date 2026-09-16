@@ -118,7 +118,8 @@ class LibraFlowContainer:
 
 
 def build_in_memory_container() -> LibraFlowContainer:
-    book_repo = InMemoryBookRepository()
+    lock_manager = ConcurrencyLockManager()
+    book_repo = InMemoryBookRepository(lock_manager=lock_manager)
     user_repo = InMemoryUserRepository()
     branch_repo = InMemoryBranchRepository()
     circulation_repo = InMemoryCirculationRecordRepository()
@@ -130,6 +131,7 @@ def build_in_memory_container() -> LibraFlowContainer:
         branch_repo=branch_repo,
         circulation_repo=circulation_repo,
         cache=cache,
+        lock_manager=lock_manager,
     )
 
 

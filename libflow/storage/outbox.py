@@ -24,8 +24,8 @@ class OutboxRepository(ABC):
         ...
 
     @abstractmethod
-    def fetch_pending(self, limit: int = 50) -> List[Dict[str, Any]]:
-        """Fetch pending outbox events for publishing."""
+    def fetch_pending(self, limit: int = 50, claim: bool = False) -> List[Dict[str, Any]]:
+        """Fetch pending outbox events for publishing. When claim=True, marks events in-flight."""
         ...
 
     @abstractmethod
@@ -59,10 +59,13 @@ class InMemoryOutboxRepository(OutboxRepository):
             self.events.append(record)
             return record
 
-    def fetch_pending(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def fetch_pending(self, limit: int = 50, claim: bool = False) -> List[Dict[str, Any]]:
         with self._lock:
-            pending = [e for e in self.events if e["status"] == "PENDING"]
-            return pending[:limit]
+            pending = [e for e in self.events if e["status"] == "PENDING"][:limit]
+            if claim:
+                for e in pending:
+                    e["status"] = "IN_FLIGHT"
+            return [{**e} for e in pending]
 
     def mark_published(self, event_id: str) -> None:
         with self._lock:
@@ -79,6 +82,8 @@ class InMemoryOutboxRepository(OutboxRepository):
                     e["retry_count"] += 1
                     if e["retry_count"] >= 5:
                         e["status"] = "FAILED"
+                    else:
+                        e["status"] = "PENDING"
                     return
 
 
@@ -109,21 +114,43 @@ class PostgresOutboxRepository(OutboxRepository):
             "status": "PENDING",
         }
 
-    def fetch_pending(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def fetch_pending(self, limit: int = 50, claim: bool = False) -> List[Dict[str, Any]]:
         from sqlalchemy import select
         with self.session_factory.create_session() as s:
-            stmt = select(OutboxEventModel).where(OutboxEventModel.status == "PENDING").limit(limit)
-            rows = s.scalars(stmt).all()
-            return [
-                {
-                    "event_id": r.event_id,
-                    "topic": r.topic,
-                    "payload": r.payload,
-                    "status": r.status,
-                    "retry_count": r.retry_count,
-                }
-                for r in rows
-            ]
+            if claim:
+                # Use FOR UPDATE SKIP LOCKED to prevent multi-worker duplicate publication race conditions
+                stmt = (
+                    select(OutboxEventModel)
+                    .where(OutboxEventModel.status == "PENDING")
+                    .with_for_update(skip_locked=True)
+                    .limit(limit)
+                )
+                rows = s.scalars(stmt).all()
+                result = []
+                for r in rows:
+                    r.status = "IN_FLIGHT"
+                    result.append({
+                        "event_id": r.event_id,
+                        "topic": r.topic,
+                        "payload": r.payload,
+                        "status": "IN_FLIGHT",
+                        "retry_count": r.retry_count,
+                    })
+                s.commit()
+                return result
+            else:
+                stmt = select(OutboxEventModel).where(OutboxEventModel.status == "PENDING").limit(limit)
+                rows = s.scalars(stmt).all()
+                return [
+                    {
+                        "event_id": r.event_id,
+                        "topic": r.topic,
+                        "payload": r.payload,
+                        "status": r.status,
+                        "retry_count": r.retry_count,
+                    }
+                    for r in rows
+                ]
 
     def mark_published(self, event_id: str) -> None:
         from sqlalchemy import select
@@ -144,6 +171,8 @@ class PostgresOutboxRepository(OutboxRepository):
                 row.retry_count += 1
                 if row.retry_count >= 5:
                     row.status = "FAILED"
+                else:
+                    row.status = "PENDING"
                 s.commit()
 
 
@@ -166,7 +195,7 @@ class OutboxRelay:
         self._thread: Optional[threading.Thread] = None
 
     def publish_pending_once(self) -> int:
-        pending = self.outbox_repo.fetch_pending(limit=50)
+        pending = self.outbox_repo.fetch_pending(limit=50, claim=True)
         published_count = 0
         for evt in pending:
             try:

@@ -70,10 +70,14 @@ class InvertedIndex:
             self.doc_term_freq[book.isbn][token] += 1
 
     def remove_book(self, isbn: str) -> None:
-        if isbn in self.books:
-            del self.books[isbn]
-        for term, doc_set in self.index.items():
-            doc_set.discard(isbn)
+        self.books.pop(isbn, None)
+        terms = list(self.doc_term_freq.get(isbn, {}).keys())
+        for term in terms:
+            doc_set = self.index.get(term)
+            if doc_set is not None:
+                doc_set.discard(isbn)
+                if not doc_set:
+                    del self.index[term]
         self.doc_term_freq.pop(isbn, None)
         self.doc_lengths.pop(isbn, None)
 

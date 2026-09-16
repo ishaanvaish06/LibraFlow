@@ -42,4 +42,6 @@ def pay_fine(
         )
         return {"status": "SUCCESS", **result}
 
-    return handle_idempotent_operation(idempotency_key, default_idempotency_store, _execute)
+    return handle_idempotent_operation(
+        idempotency_key, default_idempotency_store, _execute, user_id=req.user_id or claims.get("sub")
+    )

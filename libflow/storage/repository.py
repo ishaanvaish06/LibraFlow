@@ -74,7 +74,9 @@ class UserRepository(ABC):
         ...
 
     @abstractmethod
-    def get_user(self, user_id: str, session: Any = None) -> Optional[User]:
+    def get_user(
+        self, user_id: str, session: Any = None, for_update: bool = False
+    ) -> Optional[User]:
         ...
 
     @abstractmethod

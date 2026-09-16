@@ -13,11 +13,12 @@ from libflow.core.user import User, Student
 @dataclass(order=True)
 class BorrowRequest:
     priority: float
-    request_id: str = field(compare=False)
-    user_id: str = field(compare=False)
-    user_name: str = field(compare=False)
-    isbn: str = field(compare=False)
-    branch_id: str = field(compare=False)
+    entry_id: int = field(default=0, compare=True)
+    request_id: str = field(default="", compare=False)
+    user_id: str = field(default="", compare=False)
+    user_name: str = field(default="", compare=False)
+    isbn: str = field(default="", compare=False)
+    branch_id: str = field(default="", compare=False)
     timestamp: datetime = field(default_factory=datetime.now, compare=False)
     metadata: Dict[str, Any] = field(default_factory=dict, compare=False)
 
@@ -90,9 +91,10 @@ class SmartAllocationQueue:
         """
         priority = custom_priority if custom_priority is not None else self.calculate_priority(user, book_category)
 
-        # We store negative priority in python's min-heap to simulate max-heap
+        self._entry_counter += 1
         req = BorrowRequest(
             priority=-priority,  # Negative for max-heap
+            entry_id=self._entry_counter,  # Monotonically increasing for deterministic FIFO tie-breaking
             request_id=request_id,
             user_id=user.user_id,
             user_name=user.name,

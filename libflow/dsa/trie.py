@@ -2,7 +2,7 @@
 Trie (Prefix Tree) Implementation for Real-Time Autocomplete
 O(K) lookup where K is the query prefix length.
 """
-from typing import Dict, List, Set, Tuple, Any
+from typing import Dict, List, Tuple, Any
 
 
 class TrieNode:
@@ -50,6 +50,8 @@ class AutocompleteTrie:
     def search_prefix(self, prefix: str, limit: int = 10) -> List[Dict[str, Any]]:
         """
         Finds all items matching the prefix, sorted by highest weight.
+        Uses iterative stack traversal to prevent recursion depth exhaustion and
+        deduplicates during traversal to minimize sorting overhead.
         """
         if not prefix:
             return []
@@ -62,34 +64,29 @@ class AutocompleteTrie:
                 return []
             node = node.children[char]
 
-        results: List[Tuple[str, str, float]] = []
-        self._collect_all(node, results)
+        # item_id -> (display_text, weight)
+        best_items: Dict[str, Tuple[str, float]] = {}
+        stack = [node]
 
-        # Sort by weight descending, then by display text
-        results.sort(key=lambda x: (-x[2], x[1]))
+        while stack:
+            curr = stack.pop()
+            if curr.is_end_of_word:
+                for item_id, display_text, weight in curr.payloads:
+                    if item_id not in best_items or weight > best_items[item_id][1]:
+                        best_items[item_id] = (display_text, weight)
+            for child in curr.children.values():
+                stack.append(child)
 
-        # Deduplicate while preserving rank order
-        seen: Set[str] = set()
-        deduped: List[Dict[str, Any]] = []
-        for item_id, display_text, weight in results:
-            if item_id not in seen:
-                seen.add(item_id)
-                deduped.append({
-                    "id": item_id,
-                    "text": display_text,
-                    "weight": weight,
-                })
-                if len(deduped) >= limit:
-                    break
+        # Sort only deduplicated candidates by (-weight, display_text)
+        sorted_items = sorted(
+            best_items.items(),
+            key=lambda item: (-item[1][1], item[1][0]),
+        )
 
-        return deduped
-
-    def _collect_all(self, node: TrieNode, results: List[Tuple[str, str, float]]) -> None:
-        if node.is_end_of_word:
-            results.extend(node.payloads)
-
-        for child in node.children.values():
-            self._collect_all(child, results)
+        return [
+            {"id": item_id, "text": disp, "weight": weight}
+            for item_id, (disp, weight) in sorted_items[:limit]
+        ]
 
     def size(self) -> int:
         return self._total_entries

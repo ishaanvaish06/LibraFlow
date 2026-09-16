@@ -427,9 +427,15 @@ class PostgresUserRepository(_MappedBase, UserRepository):
         with self._session(session) as s:
             s.merge(user_to_model(user))
 
-    def get_user(self, user_id: str, session: Any = None) -> Optional[User]:
+    def get_user(
+        self, user_id: str, session: Any = None, for_update: bool = False
+    ) -> Optional[User]:
         with self._session(session) as s:
-            model = s.get(UserModel, user_id)
+            if for_update:
+                stmt = select(UserModel).where(UserModel.user_id == user_id).with_for_update()
+                model = s.scalars(stmt).one_or_none()
+            else:
+                model = s.get(UserModel, user_id)
             return model_to_user(model) if model else None
 
     def list_users(self, session: Any = None) -> List[User]:

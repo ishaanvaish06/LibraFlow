@@ -27,9 +27,10 @@ from libflow.storage.repository import (
 
 
 class InMemoryBookRepository(BookRepository):
-    def __init__(self) -> None:
+    def __init__(self, lock_manager: Optional[Any] = None) -> None:
         self.books: Dict[str, Book] = {}
         self.copies: Dict[str, BookCopy] = {}
+        self.lock_manager = lock_manager
         self._copy_locks: Dict[str, threading.Lock] = {}
         self._locks_guard = threading.Lock()
 
@@ -76,13 +77,17 @@ class InMemoryBookRepository(BookRepository):
 
     @contextmanager
     def locking_section(self, copy_id: str) -> Iterator[Any]:
-        lock = self._lock_for(copy_id)
-        if not lock.acquire(timeout=5.0):
-            raise TimeoutError(f"Could not acquire in-memory lock for copy '{copy_id}'.")
-        try:
-            yield None
-        finally:
-            lock.release()
+        if self.lock_manager is not None:
+            with self.lock_manager.acquire_pessimistic_lock(copy_id):
+                yield None
+        else:
+            lock = self._lock_for(copy_id)
+            if not lock.acquire(timeout=5.0):
+                raise TimeoutError(f"Could not acquire in-memory lock for copy '{copy_id}'.")
+            try:
+                yield None
+            finally:
+                lock.release()
 
 
 class InMemoryUserRepository(UserRepository):
@@ -94,7 +99,9 @@ class InMemoryUserRepository(UserRepository):
         with self._guard:
             self.users[user.user_id] = user
 
-    def get_user(self, user_id: str, session: Any = None) -> Optional[User]:
+    def get_user(
+        self, user_id: str, session: Any = None, for_update: bool = False
+    ) -> Optional[User]:
         with self._guard:
             return self.users.get(user_id)
 
