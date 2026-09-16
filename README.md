@@ -4,7 +4,7 @@
 
 **A Distributed-Ready, Event-Driven Library Management & Autonomous Inventory Optimization Engine**
 
-[![CI](https://github.com/ishaanvaish06/LibraFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/ishaanvaish06/LibraFlow/actions)
+[![CI](https://github.com/ishaanvaish06/LibraFlow/actions/workflows/ci.yml/badge.svg)].
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.14-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
