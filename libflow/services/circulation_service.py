@@ -29,6 +29,7 @@ from libflow.patterns.observer_notification import NotificationDispatcher, Notif
 from libflow.patterns.reservation_queue import BookReservationQueueManager
 from libflow.patterns.singleton_logger import AuditLogger
 from libflow.storage.cache import Cache
+from libflow.storage.outbox import OutboxRepository
 from libflow.storage.repository import (
     BookRepository,
     CirculationRecordRepository,
@@ -46,6 +47,8 @@ class CirculationService:
         reservation_mgr: BookReservationQueueManager,
         dispatcher: NotificationDispatcher,
         demand_forecaster: DemandForecaster,
+        outbox_repo: Optional[OutboxRepository] = None,
+        rebalancer: Optional[Any] = None,
     ):
         self.book_repo = book_repo
         self.user_repo = user_repo
@@ -54,6 +57,8 @@ class CirculationService:
         self.reservation_mgr = reservation_mgr
         self.dispatcher = dispatcher
         self.demand_forecaster = demand_forecaster
+        self.outbox_repo = outbox_repo
+        self.rebalancer = rebalancer
         self.audit_logger = AuditLogger()
         # isbn -> SmartAllocationQueue (in-memory, DSA showcase)
         self.allocation_queues: Dict[str, SmartAllocationQueue] = {}
@@ -107,7 +112,22 @@ class CirculationService:
             self.book_repo.save_copy(copy, session=session)
             self.user_repo.save_user(user, session=session)
 
-            self.demand_forecaster.record_checkout(copy.book_isbn, datetime.now().date())
+            if self.outbox_repo is not None:
+                self.outbox_repo.save_event(
+                    topic="copy.issued",
+                    payload={
+                        "copy_id": copy_id,
+                        "isbn": copy.book_isbn,
+                        "user_id": user_id,
+                        "due_date": due_date.isoformat(),
+                        "transaction_id": tx_record["transaction_id"],
+                    },
+                    session=session,
+                )
+
+            self.demand_forecaster.record_checkout(copy.book_isbn, datetime.now().date(), branch_id=copy.branch_id)
+            if self.rebalancer is not None:
+                self.rebalancer.record_checkout_hook(copy_id, copy.branch_id)
             self.cache.invalidate(f"book:{copy.book_isbn}")
 
             self.dispatcher.dispatch(NotificationEvent(
@@ -158,6 +178,20 @@ class CirculationService:
             if assigned_res:
                 copy.reserve(assigned_res.user_id)
                 self.book_repo.save_copy(copy, session=session)
+
+            if self.outbox_repo is not None:
+                self.outbox_repo.save_event(
+                    topic="copy.returned",
+                    payload={
+                        "copy_id": copy_id,
+                        "isbn": copy.book_isbn,
+                        "user_id": borrower_id,
+                        "is_late": is_late,
+                        "is_damaged": is_damaged,
+                        "assigned_reservation": assigned_res.reservation_id if assigned_res else None,
+                    },
+                    session=session,
+                )
 
             self.cache.invalidate(f"book:{copy.book_isbn}")
             self.audit_logger.log_event(

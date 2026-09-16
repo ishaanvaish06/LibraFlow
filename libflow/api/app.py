@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 
 from libflow.api.dependencies import build_container, LibraFlowContainer
 from libflow.core import exceptions as exc
-from .routers import auth, billing, branches, catalog, circulation, intelligence, system
+from .routers import auth, billing, branches, catalog, circulation, intelligence, rebalance, system
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,10 @@ app.include_router(circulation.router)
 app.include_router(billing.router)
 app.include_router(intelligence.router)
 app.include_router(branches.router)
+app.include_router(rebalance.router)
 app.include_router(system.router)
+from libflow.api.metrics import router as metrics_router
+app.include_router(metrics_router)
 
 
 @app.get("/", include_in_schema=False)

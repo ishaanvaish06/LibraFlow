@@ -3,7 +3,7 @@ GoF Strategy Pattern for Multi-Channel Payment Processing
 Supports UPI, Credit/Debit Cards, and Internal Digital Wallets
 """
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import uuid
 from datetime import datetime
 

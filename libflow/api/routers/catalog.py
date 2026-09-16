@@ -68,17 +68,26 @@ def search_books(
     author: Optional[str] = None,
     min_rating: Optional[float] = None,
     only_available: bool = False,
+    limit: int = Query(20, ge=1, le=100, description="Maximum number of books to return"),
+    offset: int = Query(0, ge=0, description="Offset into search results"),
     catalog_svc: CatalogService = Depends(get_catalog_service),
     claims: Dict[str, Any] = Depends(require_permission("BOOK_SEARCH")),
 ) -> Dict[str, Any]:
-    results = catalog_svc.search_books(
+    all_results = catalog_svc.search_books(
         query=q,
         category=category,
         author=author,
         min_rating=min_rating,
         only_available=only_available,
     )
-    return {"query": q, "total_results": len(results), "results": results}
+    paginated_results = all_results[offset : offset + limit]
+    return {
+        "query": q,
+        "total_results": len(all_results),
+        "limit": limit,
+        "offset": offset,
+        "results": paginated_results,
+    }
 
 
 @router.get("/autocomplete", tags=["Search Engine"])
@@ -110,14 +119,23 @@ def public_search_books(
     author: Optional[str] = None,
     min_rating: Optional[float] = None,
     only_available: bool = False,
+    limit: int = Query(20, ge=1, le=100, description="Maximum number of books to return"),
+    offset: int = Query(0, ge=0, description="Offset into search results"),
     catalog_svc: CatalogService = Depends(get_catalog_service),
 ) -> Dict[str, Any]:
     """Explicitly unauthenticated catalog search."""
-    results = catalog_svc.search_books(
+    all_results = catalog_svc.search_books(
         query=q,
         category=category,
         author=author,
         min_rating=min_rating,
         only_available=only_available,
     )
-    return {"query": q, "total_results": len(results), "results": results}
+    paginated_results = all_results[offset : offset + limit]
+    return {
+        "query": q,
+        "total_results": len(all_results),
+        "limit": limit,
+        "offset": offset,
+        "results": paginated_results,
+    }

@@ -36,7 +36,68 @@ COPY_ID = "CC-DEL-02"
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--threads", type=int, default=50)
+    parser.add_argument("--target-url", type=str, default=None, help="HTTP URL to API gateway/replica (e.g. http://localhost:8000)")
     args = parser.parse_args()
+
+    if args.target_url:
+        import requests
+        base_url = args.target_url.rstrip("/")
+        # Login as admin to get token
+        login_res = requests.post(f"{base_url}/api/v1/auth/login", json={"user_id": "ADMIN-01", "password": "admin123"})
+        if login_res.status_code != 200:
+            print(f"Failed to authenticate against {base_url}: {login_res.text}", file=sys.stderr)
+            return 2
+        token = login_res.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        barrier = threading.Barrier(args.threads)
+        outcomes: list[str] = []
+        outcomes_lock = threading.Lock()
+
+        def http_run(i: int) -> None:
+            user_id = f"STU-API-STRESS-{i}"
+            barrier.wait()
+            try:
+                resp = requests.post(
+                    f"{base_url}/api/v1/circulation/issue",
+                    json={"copy_id": COPY_ID, "user_id": user_id, "loan_days": 14},
+                    headers=headers,
+                    timeout=10,
+                )
+                outcome = "SUCCESS" if resp.status_code == 200 else f"HTTP_{resp.status_code}"
+            except Exception as exc:
+                outcome = type(exc).__name__
+            with outcomes_lock:
+                outcomes.append(outcome)
+
+        started = time.perf_counter()
+        threads = [threading.Thread(target=http_run, args=(i,)) for i in range(args.threads)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        elapsed = time.perf_counter() - started
+        successes = outcomes.count("SUCCESS")
+        failures = len(outcomes) - successes
+        ok = successes == 1 and len(outcomes) == args.threads
+
+        result = {
+            "benchmark": "concurrency-stress-http",
+            "run_at": datetime.now(timezone.utc).isoformat(),
+            "target_url": base_url,
+            "parameters": {"threads": args.threads, "target_copy": COPY_ID},
+            "outcomes": sorted({o: outcomes.count(o) for o in set(outcomes)}.items()),
+            "successes": successes,
+            "failures": failures,
+            "elapsed_seconds": round(elapsed, 4),
+            "passed": ok,
+        }
+        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        (RESULTS_DIR / "concurrency_stress.json").write_text(
+            json.dumps(result, indent=2), encoding="utf-8"
+        )
+        print(f"[HTTP] threads={args.threads} successes={successes} failures={failures} elapsed={elapsed:.3f}s passed={ok}")
+        return 0 if ok else 1
 
     container = build_in_memory_container()
     try:

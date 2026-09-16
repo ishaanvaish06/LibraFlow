@@ -18,6 +18,7 @@ from typing import Any, Callable, Dict, Optional
 import redis
 
 from libflow.storage.cache import Cache
+from libflow.storage.circuit_breaker import CircuitBreaker
 
 logger = logging.getLogger(__name__)
 
@@ -40,35 +41,44 @@ class RedisCache(Cache):
         self._client = client
         self.hits = 0
         self.misses = 0
+        self.breaker = CircuitBreaker("redis_cache", failure_threshold=3, recovery_timeout=5.0, expected_exceptions=(redis.RedisError,))
+
+    @property
+    def client(self) -> redis.Redis:
+        return self._client
 
     def _connection_ok(self) -> bool:
-        try:
+        def _ping():
             return self._client.ping()
-        except redis.RedisError:
-            logger.warning("Redis unavailable; caching disabled for this operation.")
-            return False
+        return self.breaker.call(_ping, fallback=lambda: False)
 
     def get(self, key: str) -> Optional[Any]:
-        try:
+        def _read():
             value = self._client.get(key)
             if value is None:
                 self.misses += 1
                 return None
             self.hits += 1
             return _deserialize(value)
-        except redis.RedisError:
+
+        def _fallback():
             self.misses += 1
             return None
 
+        return self.breaker.call(_read, fallback=_fallback)
+
     def set(self, key: str, value: Any, ttl_seconds: Optional[float] = 300.0) -> None:
-        try:
+        def _write():
             payload = _serialize(value)
             if ttl_seconds is None:
                 self._client.set(key, payload)
             else:
                 self._client.setex(key, int(ttl_seconds), payload)
-        except redis.RedisError:
-            logger.warning("Redis unavailable; skipping set for key '%s'.", key)
+
+        def _fallback():
+            logger.warning("Redis circuit breaker active/error; skipping set for key '%s'.", key)
+
+        self.breaker.call(_write, fallback=_fallback)
 
     def invalidate(self, key: str) -> bool:
         try:

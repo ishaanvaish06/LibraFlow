@@ -315,3 +315,24 @@ def test_branches_transfer_and_system(client, admin_token):
     notif = client.get("/api/v1/system/notifications/STU-ALICE", headers=headers)
     assert notif.status_code == 200
     assert isinstance(notif.json()["notifications"], list)
+
+
+def test_search_pagination(client, admin_token):
+    headers = auth_headers(admin_token)
+
+    # Unpaginated/default public search
+    pub = client.get("/api/v1/books/public/search")
+    assert pub.status_code == 200
+    data = pub.json()
+    assert "total_results" in data
+    assert data["limit"] == 20
+    assert data["offset"] == 0
+    assert isinstance(data["results"], list)
+
+    # Paginated search with custom limit and offset
+    resp = client.get("/api/v1/books/search?limit=2&offset=1", headers=headers)
+    assert resp.status_code == 200
+    pdata = resp.json()
+    assert pdata["limit"] == 2
+    assert pdata["offset"] == 1
+    assert len(pdata["results"]) <= 2

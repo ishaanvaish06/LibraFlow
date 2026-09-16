@@ -146,3 +146,21 @@ class CirculationRecordModel(Base):
     is_late: Mapped[bool] = mapped_column(Boolean, default=False)
     is_damaged: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class OutboxEventModel(Base):
+    """
+    Transactional Outbox Table.
+    Guarantees at-least-once event delivery by committing events atomically
+    within the same relational transaction as business state changes.
+    """
+    __tablename__ = "outbox_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    event_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    topic: Mapped[str] = mapped_column(String(128), index=True)
+    payload: Mapped[dict] = mapped_column(JSONB)
+    status: Mapped[str] = mapped_column(String(32), default="PENDING", index=True)  # PENDING, PUBLISHED, FAILED
+    retry_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

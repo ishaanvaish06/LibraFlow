@@ -49,6 +49,11 @@ from libflow.storage.repository import (
     UserRepository,
 )
 
+from libflow.ai.rebalancer import CrossBranchRebalancingEngine
+from libflow.distributed.event_bus import EventBus, InMemoryEventBus, RedisStreamsEventBus
+from libflow.storage.lock_manager import ConcurrencyLockManager
+from libflow.storage.outbox import OutboxRepository, InMemoryOutboxRepository, PostgresOutboxRepository, OutboxRelay
+
 logger = logging.getLogger(__name__)
 
 
@@ -89,10 +94,20 @@ class LibraFlowContainer:
     billing_svc: BillingService
     intelligence_svc: IntelligenceService
 
+    rebalancer: Optional[CrossBranchRebalancingEngine] = None
+    outbox_repo: Optional[OutboxRepository] = None
+    event_bus: Optional[EventBus] = None
+    outbox_relay: Optional[OutboxRelay] = None
+    lock_manager: Optional[ConcurrencyLockManager] = None
+
     session_factory: Optional[object] = None
     redis_client: Optional[object] = None
 
     def dispose(self) -> None:
+        if self.outbox_relay is not None:
+            self.outbox_relay.stop()
+        if self.event_bus is not None and hasattr(self.event_bus, "stop_consumer"):
+            self.event_bus.stop_consumer()
         if self.session_factory is not None and hasattr(self.session_factory, "dispose"):
             self.session_factory.dispose()
         if self.redis_client is not None:
@@ -138,6 +153,10 @@ def build_postgres_container() -> LibraFlowContainer:
         password=redis_settings.password,
     )
 
+    outbox_repo = PostgresOutboxRepository(session_factory)
+    event_bus = RedisStreamsEventBus(redis_client.client)
+    lock_manager = ConcurrencyLockManager(redis_client=redis_client.client)
+
     container = _assemble_container(
         storage_backend="postgres",
         book_repo=PostgresBookRepository(session_factory),
@@ -145,6 +164,9 @@ def build_postgres_container() -> LibraFlowContainer:
         branch_repo=PostgresBranchRepository(session_factory),
         circulation_repo=PostgresCirculationRecordRepository(session_factory),
         cache=redis_client,
+        outbox_repo=outbox_repo,
+        event_bus=event_bus,
+        lock_manager=lock_manager,
     )
     container.session_factory = session_factory
     container.redis_client = redis_client
@@ -169,6 +191,9 @@ def _assemble_container(
     branch_repo: BranchRepository,
     circulation_repo: CirculationRecordRepository,
     cache: Cache,
+    outbox_repo: Optional[OutboxRepository] = None,
+    event_bus: Optional[EventBus] = None,
+    lock_manager: Optional[ConcurrencyLockManager] = None,
 ) -> LibraFlowContainer:
     trie = AutocompleteTrie()
     index = InvertedIndex()
@@ -182,12 +207,30 @@ def _assemble_container(
     dispatcher.subscribe(sms_svc)
     dispatcher.subscribe(inapp_svc)
 
+    if outbox_repo is None:
+        outbox_repo = InMemoryOutboxRepository()
+    if event_bus is None:
+        event_bus = InMemoryEventBus()
+    if lock_manager is None:
+        lock_manager = ConcurrencyLockManager()
+
+    outbox_relay = OutboxRelay(outbox_repo, event_bus)
+    outbox_relay.start()
+
     reservation_mgr = BookReservationQueueManager(notification_dispatcher=dispatcher)
     forecaster = DemandForecaster()
     recommender = RecommendationEngine(graph_engine=graph)
     branch_mgr = MultiBranchManager()
     audit_logger = AuditLogger()
     risk_model = RiskAssessmentModel.load()
+
+    rebalancer = CrossBranchRebalancingEngine(
+        book_repo=book_repo,
+        branch_repo=branch_repo,
+        branch_mgr=branch_mgr,
+        forecaster=forecaster,
+        event_bus=event_bus,
+    )
 
     catalog_svc = CatalogService(book_repo, trie, index, cache)
     circulation_svc = CirculationService(
@@ -198,6 +241,8 @@ def _assemble_container(
         reservation_mgr,
         dispatcher,
         forecaster,
+        outbox_repo=outbox_repo,
+        rebalancer=rebalancer,
     )
     billing_svc = BillingService(book_repo, user_repo, reservation_mgr, dispatcher)
     intelligence_svc = IntelligenceService(
@@ -228,4 +273,9 @@ def _assemble_container(
         circulation_svc=circulation_svc,
         billing_svc=billing_svc,
         intelligence_svc=intelligence_svc,
+        rebalancer=rebalancer,
+        outbox_repo=outbox_repo,
+        event_bus=event_bus,
+        outbox_relay=outbox_relay,
+        lock_manager=lock_manager,
     )

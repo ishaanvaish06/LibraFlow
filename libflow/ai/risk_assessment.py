@@ -24,6 +24,7 @@ from sklearn.linear_model import LogisticRegression
 from libflow.ai.risk_seed import generate_seed_training_data
 from libflow.core.enums import UserRole
 from libflow.core.user import User
+from libflow.storage.circuit_breaker import CircuitBreaker
 
 DEFAULT_MODEL_PATH = Path(__file__).resolve().parents[2] / "models" / "risk_model.joblib"
 
@@ -50,6 +51,7 @@ HIGH_RISK_THRESHOLD = 75.0
 class RiskAssessmentModel:
     def __init__(self, clf: LogisticRegression):
         self.clf = clf
+        self.breaker = CircuitBreaker("ml_risk_scoring", failure_threshold=2, recovery_timeout=5.0)
 
     # -- feature engineering ------------------------------------------------
     @classmethod
@@ -105,7 +107,14 @@ class RiskAssessmentModel:
 
     def evaluate_risk(self, user: User) -> Dict[str, Any]:
         features = self.features_from_user(user)
-        probability = self.predict_probability(features)
+
+        def _infer():
+            return self.predict_probability(features)
+
+        def _fallback():
+            return 0.05  # Graceful fallback default 5% probability
+
+        probability = self.breaker.call(_infer, fallback=_fallback)
         risk_pct = round(probability * 100, 1)
 
         history = user.borrow_history

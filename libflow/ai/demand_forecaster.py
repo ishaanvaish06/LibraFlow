@@ -15,12 +15,25 @@ class DemandForecaster:
     def __init__(self):
         # isbn -> list of borrow date events
         self.borrow_history_dates: Dict[str, List[date]] = defaultdict(list)
+        # (isbn, branch_id) -> list of borrow dates
+        self.branch_borrow_dates: Dict[tuple[str, str], List[date]] = defaultdict(list)
 
-    def record_checkout(self, isbn: str, checkout_date: date) -> None:
+    def record_checkout(self, isbn: str, checkout_date: date, branch_id: Optional[str] = None) -> None:
         self.borrow_history_dates[isbn].append(checkout_date)
+        if branch_id:
+            self.branch_borrow_dates[(isbn, branch_id)].append(checkout_date)
 
     def forecast_demand(self, isbn: str, reference_date: date) -> Dict[str, Any]:
         dates = self.borrow_history_dates.get(isbn, [])
+        return self._calc_demand_metrics(isbn, dates, reference_date)
+
+    def forecast_demand_at_branch(self, isbn: str, branch_id: str, reference_date: date) -> Dict[str, Any]:
+        dates = self.branch_borrow_dates.get((isbn, branch_id), [])
+        metrics = self._calc_demand_metrics(isbn, dates, reference_date)
+        metrics["branch_id"] = branch_id
+        return metrics
+
+    def _calc_demand_metrics(self, isbn: str, dates: List[date], reference_date: date) -> Dict[str, Any]:
         recent_30_days = [d for d in dates if (reference_date - d).days <= 30]
         recent_7_days = [d for d in dates if (reference_date - d).days <= 7]
 

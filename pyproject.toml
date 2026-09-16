@@ -1,4 +1,5 @@
 [tool.pytest.ini_options]
+pythonpath = ["."]
 testpaths = ["tests"]
 markers = [
     "integration: requires a running Postgres/Redis (docker-compose.test.yml)",

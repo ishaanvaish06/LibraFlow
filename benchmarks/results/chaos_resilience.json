@@ -1,0 +1,10 @@
+{
+  "benchmark": "chaos-resilience",
+  "run_at": "2026-09-16T08:06:04.144383+00:00",
+  "requests": 60,
+  "healthy_successes": 31,
+  "degraded_successes": 29,
+  "uncaught_errors": 0,
+  "elapsed_seconds": 0.0347,
+  "passed": true
+}

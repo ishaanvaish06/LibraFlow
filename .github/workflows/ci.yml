@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Unit Tests & Code Quality
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: libraflow_test
+          POSTGRES_USER: libraflow_user
+          POSTGRES_PASSWORD: libraflow_secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff pytest pytest-cov httpx
+
+      - name: Run Ruff Linter
+        run: |
+          ruff check libflow tests
+
+      - name: Run Unit Tests
+        run: |
+          pytest -v tests/ --ignore=tests/integration --cov=libflow --cov-report=term-missing --cov-report=xml
+
+      - name: Run Integration Tests
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: libraflow_test
+          DB_USER: libraflow_user
+          DB_PASSWORD: libraflow_secret
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+        run: |
+          pytest -v tests/integration/
+
+      - name: Run Concurrency Stress Benchmark
+        run: |
+          python benchmarks/concurrency_stress_test.py --threads 50
